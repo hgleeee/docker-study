@@ -2,7 +2,7 @@
 > 컨테이너 관리 도구, 컨테이너 오케스트레이션을 위한 솔루션
 
 ## 애플리케이션 실행 환경의 변화
-<p align="center"><img src="./images/app_change_1.png" width="700"></p>
+<p align="center"><img src="./images/app_change_1.png" width="500"></p>
 
 - 위와 같이 3단계로 나눌 수 있다.
 - 전통적인 환경에서의 배포 (On-premise), 가상 환경에서의 배포 (Virtual Machine), 컨테이너로의 배포 (Container) 로 이루어진다.
