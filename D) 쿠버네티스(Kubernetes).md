@@ -16,7 +16,7 @@
 - 단점은, 물리적 서버에 애플리케이션의 변경 사항을 쉽게 적용할 수 없고 물리적 서버를 유지/관리하는데도 비용이 많이 들어간다.
 
 ### 2. 가상 환경에서의 배포 (Virtual Machine)
-<p align="center"><img src="./images/app_change_4.png" width="700"></p>
+<p align="center"><img src="./images/app_change_4.png" width="500"></p>
 
 - 물리적 환경에 대한 솔루션으로 가상화가 도입되었다.
 - 단일 물리적 서버의 CPU에서 여러 대의 가상머신(VM)을 실행할 수 있게 되었다.
@@ -105,7 +105,7 @@
 - 성능 상의 이유로 별도의 프록시 프로그램 대신 iptable 또는 IPVS를 사용한다. 즉 설정만 관리하게 된다.
 
 #### 3. Pod
-<p align="center"><img src="./images/kube_pod.png" width="700"></p>
+<p align="center"><img src="./images/kube_pod.png" width="500"></p>
 
 - 단일 노드에 배포된 하나 이상의 컨테이너 그룹이다.
 - Pod에 있는 모든 컨테이너는 IP 주소, IPC, 호스트 이름, 기타 리소스를 공유한다.
