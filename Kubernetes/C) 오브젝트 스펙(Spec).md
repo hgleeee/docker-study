@@ -25,7 +25,7 @@ spec:
         image: sysnet4admin/echo-hname # 사용되는 이미지
 ```
 
-<p align="center"><img src="../images/yaml_struct.png" width="600"></p>
+<p align="center"><img src="../images/yaml_struct.jpg" width="600"></p>
 
 
 ### 오브젝트 생성 실습
