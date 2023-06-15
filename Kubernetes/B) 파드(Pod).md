@@ -55,6 +55,7 @@ nginx-pod                  1/1     Running   0          4m43s   172.16.221.129  
 - 웹페이지 정보는 동일하게 받아올 수 있다.
 
 <p align="center"><img src="../images/pod_vs_dpy.jpg" width="500"></p>
+
 - run으로 파드를 생성하면 단일 파드 1개만 생성되고 관리된다.
 - create deployment로 파드를 생성하면 디플로이먼트라는 관리 그룹 내에서 파드가 생성된다.
 
