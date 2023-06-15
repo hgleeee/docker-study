@@ -207,7 +207,7 @@ echo-hname-7894b67f-wpk2s   1/1     Running   0          30m
 - 또한 AGE에서 볼 수 있듯 새로 생성된 파드가 존재한다.
 
 ### 결론
-<p align="center"><img src="../images/dpy_pod_restore.jpg" width="700"></p>
+<p align="center"><img src="../images/dpy_pod_restore.jpg" width="500"></p>
 
 - echo-hname은 디플로이먼트에 속한 파드이고, 앞에서 echo-hname에 속한 파드를 replicas에서 6개로 선언하였다.
 - replicas는 파드를 선언한 수대로 유지하도록 파드의 수를 항상 확인하고 유지시킨다.
