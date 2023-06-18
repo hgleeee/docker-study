@@ -100,117 +100,106 @@ np-svc-v2    NodePort    10.106.36.0      <none>        80:32147/TCP   142m
 #### 3) 웹 브라우저를 띄우고 192.168.1.101:32147에 접속
 - 배포된 파드 중 하나의 이름이 웹 브라우저에 표시되는 것을 확인할 수 있음
 
-## 인그레스(Ingress)
-> 클러스터 외부에서 내부의 파드에 접근할 때 사용하는 방법으로써, 서비스와의 차이점은 주로 L7 영역의 통신을 담당해 처리한다는 것이다.
+## 로드밸런서(LoadBalancer)
 
-### 인그레스 컨트롤러 동작 방식
-<p align="center"><img src="../images/nginx_ingress_controller.jpg" width="600"></p>
+### 개요
+- 노드포트와 인그레스는 들어오는 요청을 워커 노드의 노드포트를 통해 노드포트 서비스로 이동하고 이를 다시 쿠버네티스의 파드로 보내는 방식이고, 이는 비효율적이다.
+- 로드밸런서라는 서비스 타입을 제공해 간단한 구조로 파드를 외부에 노출하고 부하를 분산시킨다.
 
-1. 사용자는 노드마다 설정된 노드포트를 통해 노드포트 서비스로 접속한다. 이 때, 노드포트 서비스를 NGINX 인그레스 컨트롤러로 구성한다.
-2. NGINX 인그레스 컨트롤러는 사용자의 접속 경로에 따라 적합한 클러스터 IP 서비스로 경로를 제공한다.
-3. 클러스터 IP 서비스는 사용자를 해당 파드로 연결한다.
+<p align="center"><img src="../images/load_balancer.jpg" width="600"></p>
 
-### 실습
-#### 1) 테스트용으로 디플로이먼트 두 개 배포
+- 로드밸런서를 사용하기 위해서는 로드밸런서를 이미 구현해 둔 서비스업체의 도움을 받아 쿠버네티스 클러스터 외부에 구현해야 한다.
+- 테스트 가상환경(온프레미스)에서 로드밸런서를 사용하는 것에 대해 알아보자.
+
+### MetalLB
+- 온프레미스에서 로드밸런서를 사용하기 위해서는 내부에 로드밸런서 서비스를 받아주는 구성이 필요한데, 이것이 MetalLB이다.
+- 베어메탈 환경에서 사용할 수 있는 로드밸런서를 제공하는 오픈소스 프로젝트이다. 클라우드 환경의 로드밸런서와는 동작이 조금 다르다.
+- 로드밸런서의 External IP 전파를 위해 표준 프로토콜인 ARP(IPv4)/NDP(IPv6), BGP 를 사용한다.
+    > ARP/NDP : L2 네트워크     /////      BGP : L3 네트워크
+    
+<p align="center"><img src="../images/metallb_system.jpg" width="600"></p>
+
+- MetalLB 스피커는 정해진 작동 방식(L2/ARP, L3/BGP)에 따라 경로를 만들 수 있도록 네트워크 정보를 광고하고 수집해 각 파드의 경로를 제공한다.
+
+
+### MetalLB로 온프레미스 쿠버네티스 환경에서 로드밸런서 서비스 구성 과정
+#### 1) 디플로이먼트를 이용해 두 종류의 파드 생성, 그 후 파드를 3개로 늘림
 ```bash
-[root@m-k8s ~]# kubectl create deployment in-hname-pod --image=sysnet4admin/echo-hname
-deployment.apps/in-hname-pod created
-[root@m-k8s ~]# kubectl create deployment in-ip-pod --image=sysnet4admin/echo-ip
-deployment.apps/in-ip-pod created
+[root@m-k8s ~]# kubectl create deployment lb-hname-pods --image=sysnet4admin/echo-hname
+deployment.apps/lb-hname-pods created
+[root@m-k8s ~]# kubectl scale deployment lb-hname-pods --replicas=3
+deployment.apps/lb-hname-pods scaled
+[root@m-k8s ~]# kubectl create deployment lb-ip-pods --image=sysnet4admin/echo-ip
+deployment.apps/lb-ip-pods created
+[root@m-k8s ~]# kubectl scale deployment lb-ip-pods --replicas=3
+deployment.apps/lb-ip-pods scaled
 ```
 
-#### 2) 배포된 파드의 상태 확인
+#### 2) 두 종류의 파드가 3개씩 총 6개가 배포되었는지 확인
+#### 3) 사전에 정의된 오브젝트 스펙으로 MetalLB 구성, MetalLB에 필요한 요소 모두와 독립적인 네임스페이스 설치
+
 ```bash
-[root@m-k8s ~]# kubectl get pods
-NAME                            READY   STATUS    RESTARTS   AGE
-in-hname-pod-8565c86448-wvtpx   1/1     Running   0          3m6s
-in-ip-pod-76bf6989d-g2nxw       1/1     Running   0          2m52s
+[root@m-k8s ~]# kubectl apply -f ~/_Book_k8sInfra/ch3/3.3.4/metallb.yaml
+namespace/metallb-system created
+podsecuritypolicy.policy/speaker created
+serviceaccount/controller created
+serviceaccount/speaker created
+clusterrole.rbac.authorization.k8s.io/metallb-system:controller created
+clusterrole.rbac.authorization.k8s.io/metallb-system:speaker created
+role.rbac.authorization.k8s.io/config-watcher created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:controller created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:speaker created
+rolebinding.rbac.authorization.k8s.io/config-watcher created
+daemonset.apps/speaker created
+deployment.apps/controller created
 ```
 
-#### 3) nginx 인그레스 컨트롤러 설치 (많은 오브젝트 스펙이 포함되어 있음)
+#### 4) 배포된 MetalLB의 파드가 5개(controller 1개, speaker 4개)인지 확인하고, IP와 상태도 확인
 ```bash
-[root@m-k8s ~]# kubectl apply -f ~/_Book_k8sInfra/ch3/3.3.2/ingress-nginx.yaml
-namespace/ingress-nginx created
-configmap/nginx-configuration created
-configmap/tcp-services created
-configmap/udp-services created
-serviceaccount/nginx-ingress-serviceaccount created
-clusterrole.rbac.authorization.k8s.io/nginx-ingress-clusterrole created
-role.rbac.authorization.k8s.io/nginx-ingress-role created
-rolebinding.rbac.authorization.k8s.io/nginx-ingress-role-nisa-binding created
-clusterrolebinding.rbac.authorization.k8s.io/nginx-ingress-clusterrole-nisa-binding created
-deployment.apps/nginx-ingress-controller created
-limitrange/ingress-nginx created
+[root@m-k8s ~]# kubectl get pods -n metallb-system -o wide
+NAME                          READY   STATUS    RESTARTS   AGE   IP               NODE     NOMINATED NODE   READINESS GATES
+controller-5d48db7f99-7zmvh   1/1     Running   0          34s   172.16.103.146   w2-k8s   <none>           <none>
+speaker-98kxh                 1/1     Running   0          34s   192.168.1.101    w1-k8s   <none>           <none>
+speaker-j48pv                 1/1     Running   0          34s   192.168.1.103    w3-k8s   <none>           <none>
+speaker-l7jc2                 1/1     Running   0          34s   192.168.1.10     m-k8s    <none>           <none>
+speaker-trkk9                 1/1     Running   0          34s   192.168.1.102    w2-k8s   <none>           <none>
 ```
 
-#### 4) nginx 인그레스 컨트롤러 파드 배포 확인
+#### 5) MetalLB 설정을 적용할 때 컨피그맵 사용
 ```bash
-[root@m-k8s ~]# kubectl get pods -n ingress-nginx
-NAME                                        READY   STATUS    RESTARTS   AGE
-nginx-ingress-controller-5bb8fb4bb6-l8hkf   1/1     Running   0          117s
-```
-- -n : namespace의 약자로, default 외의 네임스페이스를 확인할 때 사용하는 옵션이다.
-
-#### 5) 인그레스를 사용자 요구 사항에 맞게 설정하기 위해 경로와 작동 정의
-```bash
-[root@m-k8s ~]# kubectl apply -f ~/_Book_k8sInfra/ch3/3.3.2/ingress-config.yaml
-ingress.networking.k8s.io/ingress-nginx created
+[root@m-k8s ~]# kubectl apply -f ~/_Book_k8sInfra/ch3/3.3.4/metallb-l2config.yaml
+configmap/config created
 ```
 
-##### ingress-config.yaml 파일 구조
-<p align="center"><img src="../images/ingress_config_struct.jpg" width="600"></p>
+<p align="center"><img src="../images/metallb_configmap_struct.jpg" width="600"></p>
 
-
-#### 6) 인그레스 설정 파일이 제대로 등록됐는지 확인
+#### 6) 컨피그맵 생성 확인
 ```bash
-[root@m-k8s ~]# kubectl get ingress
-NAME            CLASS    HOSTS   ADDRESS   PORTS   AGE
-ingress-nginx   <none>   *                 80      5m2s
+[root@m-k8s ~]# kubectl get configmap -n metallb-system
+NAME     DATA   AGE
+config   1      81s
 ```
 
-#### 7) 외부에서 NGINX 인그레스 컨트롤러에 접속할 수 있게 노드포트 서비스로 인그레스 컨트롤러를 외부에 노출
+#### 7) 각 디플로이먼트를 로드밸런서 서비스로 노출
 ```bash
-[root@m-k8s ~]# kubectl apply -f ~/_Book_k8sInfra/ch3/3.3.2/ingress.yaml
-service/nginx-ingress-controller created
+[root@m-k8s ~]# kubectl expose deployment lb-hname-pods --type=LoadBalancer --name=lb-hname-svc --port=80
+service/lb-hname-svc exposed
+[root@m-k8s ~]# kubectl expose deployment lb-ip-pods --type=LoadBalancer --name=lb-ip-svc --port=80
+service/lb-ip-svc exposed
 ```
 
-##### ingress.yaml 파일 구조
-<p align="center"><img src="../images/ingress_struct.jpg" width="600"></p>
-
-#### 8) 노드포트 서비스로 생성된 nginx-ingress-controller를 확인
-```bash
-[root@m-k8s ~]# kubectl get services -n ingress-nginx
-NAME                       TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
-nginx-ingress-controller   NodePort   10.98.158.179   <none>        80:30100/TCP,443:30101/TCP   11m
-```
-
-#### 9) expose 명령으로 in-hname-pod, in-ip-pod 디플로이먼트를 서비스로 노출
-```bash
-[root@m-k8s ~]# kubectl expose deployment in-hname-pod --name=hname-svc-default --port=80,443
-service/hname-svc-default exposed
-[root@m-k8s ~]# kubectl expose deployment in-ip-pod --name=ip-svc --port=80,443
-service/ip-svc exposed
-```
-
-#### 10) 생성된 서비스를 점검해 디플로이먼트들이 서비스에 정상적으로 노출되는지 확인
+#### 8) 생성된 로드밸런서 서비스별로 CLUSTER-IP와 EXTERNAL-IP(컨피그맵을 통해 부여된)가 잘 적용됐는지 확인
 ```bash
 [root@m-k8s ~]# kubectl get services
-NAME                TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-hname-svc-default   ClusterIP   10.97.238.207    <none>        80/TCP,443/TCP   9m54s
-ip-svc              ClusterIP   10.111.139.186   <none>        80/TCP,443/TCP   9m27s
-kubernetes          ClusterIP   10.96.0.1        <none>        443/TCP          3d9h
+NAME           TYPE           CLUSTER-IP       EXTERNAL-IP    PORT(S)        AGE
+kubernetes     ClusterIP      10.96.0.1        <none>         443/TCP        3d10h
+lb-hname-svc   LoadBalancer   10.99.205.146    192.168.1.11   80:30649/TCP   2m37s
+lb-ip-svc      LoadBalancer   10.103.131.128   192.168.1.12   80:31951/TCP   2m19s
 ```
-- 새로 생성된 서비스는 default 네임스페이스에 있으므로 -n 옵션으로 네임스페이스를 따로 지정하지 않아도 된다.
 
-#### 11) 워커노드 ip와 노드포트를 사용해 파드의 ip가 반환되는지를 확인한다.
+#### 9) EXTERNAL-IP 작동 확인
 
-
-
-
-
-
-
-
+#### 10) 로드밸런서 기능 검증
 
 
 
