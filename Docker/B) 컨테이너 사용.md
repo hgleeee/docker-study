@@ -181,6 +181,19 @@ CONTAINER ID        IMAGE               COMMAND                  CREATED        
 ```
 - 컨테이너 내부와 연결된 /root/html/ 디렉터리가 비어있음을 확인할 수 있고, 따라서 현재 컨테이너의 nginx는 초기 화면으로 보여줄 파일이 없다.
 
+#### 5) cp 명령어로 index.html 파일을 /root/html/ 디렉토리에 복사
+
+```bash
+[root@m-k8s ~]# cp ~/_Book_k8sInfra/ch4/4.2.3/index-BindMount.html /root/html/index.html
+[root@m-k8s ~]# ls /root/html
+index.html
+```
+
+#### 6) 브라우저에서 192.168.1.10:8081 로 접속
+- index.html이 표시됨을 확인할 수 있다.
+- 현재 상태는 바인드 마운트로 index.html이 호스트에서 컨테이너로 전달된 상태이다.
+
+
 ### 볼륨으로 호스트와 컨테이너 연결
 
 
