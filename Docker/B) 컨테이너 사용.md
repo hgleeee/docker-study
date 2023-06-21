@@ -137,7 +137,7 @@ CONTAINER ID        IMAGE               COMMAND                  CREATED        
 - 192.168.1.10:8080 으로 접근했을 때 NGINX 초기 화면이 출력되는 것을 확인할 수 있다.
 
 
-## 컨테이너 내부 파일 변경
+## 3. 컨테이너 내부 파일 변경
 ### 방법
 #### docker cp
 - docker cp <호스트 경로> <컨테이너 이름>:<컨테이너 내부 경로> 형식이다.
@@ -196,13 +196,153 @@ index.html
 
 ### 볼륨으로 호스트와 컨테이너 연결
 
+#### 1) 볼륨 생성
+```bash
+[root@m-k8s ~]# docker volume create nginx-volume
+nginx-volume
+```
+- 컨테이너에 연결할 볼륨을 호스트에 생성한다.
+
+#### 2) 볼륨 조회
+```bash
+[root@m-k8s ~]# docker volume inspect nginx-volume
+[
+    {
+        "Driver": "local",
+        "Labels": {},
+        "Mountpoint": "/var/lib/docker/volumes/nginx-volume/_data",
+        "Name": "nginx-volume",
+        "Options": {},
+        "Scope": "local"
+    }
+]
+```
+
+#### 3) 볼륨으로 생성된 디렉터리 확인
+```bash
+[root@m-k8s ~]# ls /var/lib/docker/volumes/nginx-volume/_data/
+[root@m-k8s ~]#
+```
+
+#### 4) 호스트와 컨테이너의 디렉터리를 연결할 컨테이너 구동
+```bash
+[root@m-k8s ~]# docker run -d -v nginx-volume:/usr/share/nginx/html -p 8082:80 --restart always --name nginx-volume nginx
+baefd58b83055044086b7995818690066ebe8c08efff760e4ea5ad5b0437cc34
+```
+- nginx-volume 이라는 이름의 볼륨을 구동하고 컨테이너 내부의 /usr/share/nginx/html 디렉터리와 호스트의 nginx-volume 볼륨을 연결한다.
+- -v [볼륨 이름]:[컨테이너 디렉터리] 옵션 사용
+
+#### 5) 볼륨 디렉터리 재확인
+```bash
+[root@m-k8s ~]# ls /var/lib/docker/volumes/nginx-volume/_data/
+50x.html  index.html
+```
+
+#### 6) 브라우저로 접속
+- 성공적으로 index.html이 브라우저로 보여지는 것을 알 수 있다.
+- 볼륨은 바인드 마운트 방식과는 달리 컨테이너 디렉터리에 덮어쓰는 것이 아닌 양쪽을 서로 동기화시키는 구조이기 때문에 컨테이너 디렉터리의 기존 파일이 보존된다.
+
+#### 7) cp 명령어로 index.html 파일 바꿔치기
+```bash
+[root@m-k8s ~]# cp ~/_Book_k8sInfra/ch4/4.2.3/index-Volume.html /var/lib/docker/volumes/nginx-volume/_data/index.html
+cp: overwrite ‘/var/lib/docker/volumes/nginx-volume/_data/index.html’? y
+```
+- 바꾼 index.html 파일이 브라우저에 나타난다.
+- 이를 통해 볼륨을 사용하면 컨테이너에 존재하는 파일을 보존하거나, 필요할 때 변경해서 사용할 수 있음을 알 수 있다.
+
+## 4. 사용하지 않는 컨테이너 정리
+### 컨테이너 정지
+> 컨테이너나 이미지를 삭제하기 전에 먼저 선행되어야 할 것이 정지이다.
+
+#### 1) nginx 이미지를 기반으로 생성된 컨테이너 조회
+```bash
+[root@m-k8s ~]# docker ps -f ancestor=nginx
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                  NAMES
+baefd58b8305        nginx               "/docker-entrypoin..."   7 minutes ago       Up 7 minutes        0.0.0.0:8082->80/tcp   nginx-volume
+42c4f6694636        nginx               "/docker-entrypoin..."   19 hours ago        Up 2 hours          0.0.0.0:8081->80/tcp   nginx-bind-mounts
+7df1d2fe196c        nginx               "/docker-entrypoin..."   20 hours ago        Up 2 hours          0.0.0.0:8080->80/tcp   nginx-exposed
+2c6c78709099        nginx               "/docker-entrypoin..."   23 hours ago        Up 2 hours          80/tcp                 inspiring_goldberg
+```
+- ancestor 키는 컨테이너를 생성하는 데 사용한 이미지를 기준으로 필터링한다.
+
+#### 2) 컨테이너를 이름으로 정지
+```bash
+[root@m-k8s ~]# docker stop inspiring_goldberg
+inspiring_goldberg
+```
+- docker stop <컨테이너 이름 | ID> 명령으로 컨테이너를 정지할 수 있다.
+
+#### 3) 컨테이너를 ID로 정지
+```bash
+[root@m-k8s ~]# docker stop 7df
+7df
+```
+- nginx-exposed 정지
+
+#### 4) nginx 이미지를 사용하는 모든 컨테이너를 한꺼번에 정지
+```bash
+[root@m-k8s ~]# docker ps -q -f ancestor=nginx
+baefd58b8305
+42c4f6694636
+```
+- 위의 조회 명령으로 nginx 이미지를 사용하는 모든 컨테이너 ID를 출력할 수 있다.
+- -q (--quite) 옵션으로 ID만 출력 가능
+
+```bash
+[root@m-k8s ~]# docker stop $(docker ps -q -f ancestor=nginx)
+baefd58b8305
+42c4f6694636
+```
+- 위와 같이 $() 안에 docker stop의 인자로 사용하도록 할 수 있다.
+
+#### 5) 정지된 컨테이너를 포함한 모든 컨테이너 조회
+```bash
+[root@m-k8s ~]# docker ps -a -f ancestor=nginx
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                          PORTS               NAMES
+baefd58b8305        nginx               "/docker-entrypoin..."   14 minutes ago      Exited (0) About a minute ago                       nginx-volume
+42c4f6694636        nginx               "/docker-entrypoin..."   19 hours ago        Exited (0) About a minute ago                       nginx-bind-mounts
+7df1d2fe196c        nginx               "/docker-entrypoin..."   20 hours ago        Exited (0) 3 minutes ago                            nginx-exposed
+2c6c78709099        nginx               "/docker-entrypoin..."   23 hours ago        Exited (0) 5 minutes ago                            inspiring_goldberg
+```
+- 정지된 컨테이너를 다시 구동하고 싶다면 docker start <컨테이너 이름 | ID> 명령어를 사용한다.
 
 
+### 컨테이너와 이미지 삭제
+#### 1) 컨테이너 삭제
+```bash
+[root@m-k8s ~]# docker rm $(docker ps -aq -f ancestor=nginx)
+baefd58b8305
+42c4f6694636
+7df1d2fe196c
+2c6c78709099
+```
+- docker rm <컨테이너 이름 | ID> 명령어로 컨테이너를 삭제한다.
 
-
-
-
-
+#### 2) 이미지 삭제
+```bash
+[root@m-k8s ~]# docker rmi $(docker images -q nginx)
+Untagged: docker.io/nginx:latest
+Untagged: docker.io/nginx@sha256:593dac25b7733ffb7afe1a72649a43e574778bf025ad60514ef40f6b5d606247
+Deleted: sha256:eb4a57159180767450cb8426e6367f11b999653d8f185b5e3b78a9ca30c2c31d
+Deleted: sha256:387c6708d068d261ce5b1fe3e67323cbf64d8a37901f3d9742557f4abb830baf
+Deleted: sha256:2946620cb422511c62ba67d12b1c16bbf6b85e6ce42e93a4dace94b4a70160b3
+Deleted: sha256:f2545115e362a40e5b3fe057ad159aa9824f40a0e9341f4743b4d0c4f5322435
+Deleted: sha256:9b3ff8c6f07faac480afaeecc0388a387f8cf92832de656a2d35e890340ac59a
+Deleted: sha256:77366f15e73eef5c23ff7bd0be0c09f1b280c9586863232392c2d500eed148e7
+Deleted: sha256:7447c8c6be248218804380a22d47c130f7efc16f31550cb446fc3cc91f98a54c
+Deleted: sha256:ac4d164fef90ff58466b67e23deb79a47b5abd30af9ebf1735b57da6e4af1323
+Untagged: docker.io/nginx:stable
+Untagged: docker.io/nginx@sha256:a8281ce42034b078dc7d88a5bfe6d25d75956aad9abba75150798b90fa3d1010
+Deleted: sha256:2af0ea4a9556b049337d026dd7df7f9c20661203c634be4f9b976814c05e5c32
+Deleted: sha256:e6067ec1fcb755253b636345433596519db188e171c187b77e2406c18b5bddb5
+Deleted: sha256:bc1572112f4383964945f8ec3e476dad3a11f2cd5dbefad7e913aa3375b895ac
+Deleted: sha256:bfd119cd090e088fbedd6e9a62c6c8be4f6bb80436bd050c7403c974b5582548
+Deleted: sha256:46dcd0ba3f14025b1e146ce79dab6b4eec3b63558fb6482ce520470b5d2b4985
+Deleted: sha256:a600211c75798c52c7a8a5186af235b1b3e81491dd20d43b744de78f275bed65
+Deleted: sha256:0cc1f01656262cc1319655e8570146e4aa190c3fb8c7e81c353760c44a96c13b
+```
+- rmi 는 remove image 라는 의미이다.
+- 이미지는 컨테이너가 정지 상태가 아닌 삭제된 상태일 때 비로소 삭제 가능하다.
 
 
 
