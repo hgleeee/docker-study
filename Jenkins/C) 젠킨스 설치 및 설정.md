@@ -112,7 +112,9 @@ jenkins-76496d9db7-7dkt4   2/2     Running   0          8m51s   172.16.171.74   
     564          key: node-role.kubernetes.io/master
     565          operator: Exists
     [생략]
+```
 
+- 위의 테인트(taints)와 톨러레이션(tolerations)이 이런 결과를 만든 설정이다.
 
 
 
