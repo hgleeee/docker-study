@@ -183,20 +183,77 @@ jenkins-76496d9db7-7dkt4   2/2     Running   0          8m51s   172.16.171.74   
 - Manage Credentials : 젠킨스에서 사용하는 플러그인에 필요한 접근 키, 비밀 키, API 토큰과 같은 접속에 필요한 인증 정보를 관리
 
 ### 4) 시스템 설정 메뉴
-- 시스템 메시지 : 
+- 시스템 메시지 : 메인 웹 페이지에 접속했을 때 나타나는 메시지
+- \# of executors : 동시에 빌드를 수행할 수 있는 실행기의 개수 설정
+- Label : 노드를 구분할 수 있는 레이블 지정
+- Usage : 젠킨스의 빌드 작업에 대해 젠킨스 노드가 어떻게 처리할지 설정
+- Quiet period : 빌드 작업이 시작될 때까지 잠시 대기하는 시간을 설정하는 값
+- SCM checkout retry count : 소스 코드 저장소(SCM)로부터 파일을 가져오지 못한 경우 몇 번 재시도할지 설정
+- Restrict project naming : 젠킨스를 통해 만들어지는 작업의 이름 규칙 설정
+- Jenkins URL : 설치된 젠킨스 컨트롤러의 접속 주소
+- Resource Root URL : 빌드 결과물과 같은 내용을 외부에 공개하기 위해 사용하는 주소
 
-## 젠킨스 컨트롤러 설정
+## 젠킨스 에이전트 설정
+### 젠킨스 노드 관리
+- 신규 노드 : 에이전트 노드 추가
+- Configure Clouds : 클라우드 환경 기반의 에이전트 설정
+- Node Monitoring : 에이전트 노드의 안정성을 위한 각종 모니터링과 관련된 사항 설정
+- 노드 목록 : 현재 구성된 목록을 보여준다. 작업중이 아니라면 해당 목록에는 젠킨스 컨트롤러 노드만 표시
 
+### 파드 내 볼륨 설정
+- Config Map Volume : 쿠버네티스에 존재하는 ConfigMap 오브젝트를 파드 내부에 연결해 파드에서 사용할 수 있도록 함
+- Empty Dir Volume : 파일 및 내용이 없는 디렉터리를 파드 내부에 생성
+- Host Path Volume : 쿠버네티스 워커 노드에 파일 및 디렉터리를 파드에서 사용할 수 있도록 연결해줌
+- NFS Volume : NFS 서버에 위치한 원격의 디렉터리를 파드가 사용할 수 있도록 함
+- Persistent Volume Claim : 쿠버네티스 클러스터에서 PVC로 설정한 볼륨을 파드에서 사용할 수 있도록 함
+- Secret Volume : 쿠버네티스에 있는 Secret 오브젝트를 파드 내부에 연결해 파드에서 사용할 수 있도록 함
 
+### jenkins 서비스 어카운트를 위한 권한 설정
+- 젠킨스 에이전트 파드에서 쿠버네티스 API 서버로 통신하기 위해서는 서비스 어카운트에 권한을 주어야 한다.
 
+#### 1) jenkins 서비스 어카운트 확인
+```bash
+[root@m-k8s ~]# kubectl get serviceaccounts
+NAME      SECRETS   AGE
+default   1         2d5h
+jenkins   1         25h
+```
 
+### 2) 서비스 어카운트 계정 jenkins에 쿠버네티스 클러스터에 대한 admin 권한 부여
+```bash
+[root@m-k8s ~]# kubectl create clusterrolebinding jenkins-cluster-admin \--clusterrole=cluster-admin --serviceaccount=default:jenkins
+clusterrolebinding.rbac.authorization.k8s.io/jenkins-cluster-admin created
+```
 
+- jenkins 서비스 어카운트를 통해 젠킨스 에이전트 파드를 생성, 혹은 젠킨스 에이전트 파드 내부에서 쿠버네티스 오브젝트에 제약 없이 접근을 위해서는 cluster-admin 역할을 부여해야 한다.
+- 서비스 어카운트에 cluster-admin 권한을 부여하고 이를 jenkins에 묶어 주는데, 이러한 방식을 __역할 기반 접근 제어(RBAC, Role-Based Access Control)__ 라고 한다.
 
+#### 해석
+- kubectl create를 통해 clusterrolebinding을 jenkins-cluster-admin이라는 이름으로 만든다.
+- 옵션 1 : clusterrole에 묶여질 역할 = cluster-admin이라는 미리 정의된 클러스터 관리자 역할
+- 옵션 2 : jenkins-cluster-admin이라는 클러스터 역할의 서비스 어카운트를 jenkins로 지정 -> 이 때, 여러 가지 서비스 어카운트가 존재할 수 있으므로 네임스페이스 default도 함께 지정
 
+#### 역할 부여 구조
+##### Rules 
+> 역할 기반 접근 제어에서 할 수 있는 일과 관련된 Role, ClusterRole이 가지는 자세한 행동 규칙
+- apiGroups, resources, verbs의 속성을 가짐
+- 접근할 수 있는 API의 집합은 Rules에서 apiGroups로 표현, API 그룹에 분류된 자원 중 접근 가능한 자원을 선별하기 위해 Resources 사용, 해당 자원에 대해 할 수 있는 행동을 규정하기 위한 verbs
+- 행동의 종류는 get(정보 얻기), list(목록 조회), create(자원 생성), update(자원 갱신), patch(일부 수정), watch(감시), delete(삭제)
 
+##### Role, ClusterRole
+> '할 수 있는 일'을 대표하는 오브젝트
+- Rules에 적용된 규칙에 따른 동작을 할 수 있으며, 적용 범위에 따라 Role과 ClusterRole로 나눈다.
+- Role : 해당 Role을 가진 주체가 특정 namespace에 대해 접근 가능
+- ClusterRole : 해당 ClutsterRole을 가진 주체가 쿠버네티스 클러스터 전체에 대해 접근 가능
 
+##### Rolebinding, ClusterRoleBinding
+> 무엇을 할 수 있나?라는 속성을 '할 수 있는 주체'를 대표하는 속성인 Subjects와 연결시켜주는 역할
+- Role과 ClusterRole은 공통적으로 roleRef(할 수 있는 역할의 참조)와 subjects(수행 주체)라는 속성을 가짐
+- RoleBinding은 Role과 결합하여 네임스페이스 범위의 접근 제어 수행, ClusterRoleBinding은 ClusterRole과 결합해 클러스터 전체 범위의 접근 제어 수행
 
-
+##### Subjects 
+> 역할 기반 접근 제어에서 행위를 수행하는 주체를 의미
+- 특정 사용자 혹은 그룹, 서비스 어카운트를 속성으로 가짐
 
 
 
