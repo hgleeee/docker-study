@@ -111,8 +111,25 @@ kubernetes       ClusterIP      10.96.0.1       <none>         443/TCP          
 - Pipeline script from SCM을 선택할 경우 외부 소스 코드 저장소에서 선언적 문법으로 작성된 파일을 가져와 실행
 
 #### 5) Jenkinsfile 소스 해석
+- D-1 참조.
 
 
+#### 6) 젠킨스의 빌드 및 배포 작업
+- Build Now 버튼 클릭
+
+#### 7) 쿠버네티스 클러스터에서 디플로이먼트와 로드밸런서 정상 배포 확인
+```bash
+[root@m-k8s ~]# kubectl get deployments
+NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+jenkins        1/1     1            1           38h
+pl-bulk-prod   1/1     1            1           98s
+[root@m-k8s ~]# kubectl get services
+NAME               TYPE           CLUSTER-IP      EXTERNAL-IP    PORT(S)          AGE
+jenkins            LoadBalancer   10.101.41.251   192.168.1.11   80:31287/TCP     38h
+jenkins-agent      ClusterIP      10.99.232.19    <none>         50000/TCP        38h
+kubernetes         ClusterIP      10.96.0.1       <none>         443/TCP          2d18h
+pl-bulk-prod-svc   LoadBalancer   10.103.18.61    192.168.1.12   8080:31576/TCP   102s
+```
 
 
 
