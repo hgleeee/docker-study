@@ -137,6 +137,48 @@ boot  docker-entrypoint.d  etc                   lib   lib64  media   opt  root 
 
 #### 4)
 ```bash
+[root@m-k8s ~]# ip addr list nginx
+18: nginx: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 76:96:ce:50:66:0b brd ff:ff:ff:ff:ff:ff
+    inet 192.168.200.1/24 scope global nginx
+       valid_lft forever preferred_lft forever
+```
+
+#### 5)
+```bash
+[root@m-k8s ~]# cp ~/_Book_k8sInfra/app/D.DeepDiveContainer/config.json .
+
+```
+
+
+#### 6)
+```bash
+[root@m-k8s ~]# runc run nginx-container
+# ls
+bin   dev                  docker-entrypoint.sh  home  lib32  libx32  mnt  proc  run   srv  tmp  var
+boot  docker-entrypoint.d  etc                   lib   lib64  media   opt  root  sbin  sys  usr
+```
+
+#### 7)
+```bash
+# ./docker-entrypoint.sh nginx
+./docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+./docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+./docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+./docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+./docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+./docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+./docker-entrypoint.sh: Configuration complete; ready for start up
+```
+
+#### 8)
+```bash
+
+```
+
+
 
 
 
