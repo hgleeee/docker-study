@@ -66,22 +66,11 @@ root      1486   998  0 10:04 ?        00:00:00 containerd-shim -namespace moby 
 #### 2) nginx 컨테이너 구동 후 nginx 관련 프로세스 재확인
 ```bash
 [root@m-k8s ~]# docker run -d nginx
-Unable to find image 'nginx:latest' locally
-latest: Pulling from library/nginx
-5b5fe70539cd: Pull complete
-441a1b465367: Pull complete
-3b9543f2b500: Pull complete
-ca89ed5461a9: Pull complete
-b0e1283145af: Pull complete
-4b98867cde79: Pull complete
-4a85ce26214d: Pull complete
-Digest: sha256:593dac25b7733ffb7afe1a72649a43e574778bf025ad60514ef40f6b5d606247
-Status: Downloaded newer image for nginx:latest
-e442af61675f6e2a57eda586412ded2076aac1dd3166d93ea37f8e6e1625aae8
+3b18ce3ea87b60e8947e11d4224e6a5da103f11f0857179aa9a8b7788de5dd9a
 [root@m-k8s ~]# ps -ef | grep -v auto | grep nginx
-root      6592  6574  0 10:10 ?        00:00:00 nginx: master process nginx -g daemon off;
-101       6629  6592  0 10:10 ?        00:00:00 nginx: worker process
-101       6630  6592  0 10:10 ?        00:00:00 nginx: worker process
+root     23366 23338  1 12:49 ?        00:00:00 nginx: master process nginx -g daemon off;
+101      23409 23366  0 12:49 ?        00:00:00 nginx: worker process
+101      23410 23366  0 12:49 ?        00:00:00 nginx: worker process
 ```
 
 - ps -ef | grep -v auto | grep nginx 실행 결과 PID가 6592인 nginx 프로세스가 나타난다.
@@ -91,20 +80,63 @@ root      6592  6574  0 10:10 ?        00:00:00 nginx: master process nginx -g d
 
 #### 3) 컨테이너 내부의 nginx 프로세스 확인
 ```bash
-[root@m-k8s ~]# docker exec e442 ls -l /proc/1/exe
-lrwxrwxrwx. 1 root root 0 Jun 27 01:26 /proc/1/exe -> /usr/sbin/nginx
+[root@m-k8s ~]# docker exec 3b1 ls -l /proc/1/exe
+lrwxrwxrwx. 1 root root 0 Jun 27 03:50 /proc/1/exe -> /usr/sbin/nginx
 ```
 - 리눅스는 프로세스와 관련된 정보를 /proc/<PID>/ 디렉터리에 보관하며, /proc/<PID>/exe는 해당 <PID>를 가지는 프로세스를 생성하기 위해 실행된 명령어를 보여준다.
 - /proc/1/exe -> /usr/sbin/nginx는 컨테이너 내부에서 PID 1을 가지고 구동 중인 프로세스가 nginx임을 의미한다.
 
-#### 4) 호스트와 컨테인너 내부의 nginx
+#### 4) 호스트와 컨테이너 내부의 nginx가 동일한 프로세스임을 증명
+- 리눅스는 자원을 
+
+```bash
+[root@m-k8s ~]# cat /proc/23366/cgroup
+[중략]
+1:name=systemd:/docker/3b18ce3ea87b60e8947e11d4224e6a5da103f11f0857179aa9a8b7788de5dd9a
+[root@m-k8s ~]# docker exec 3b18 cat /proc/1/cgroup
+[중략]
+1:name=systemd:/docker/3b18ce3ea87b60e8947e11d4224e6a5da103f11f0857179aa9a8b7788de5dd9a
+```
+
+#### 5)
+```bash
+[root@m-k8s ~]# kill -9 23366
+[root@m-k8s ~]# cat /proc/23366/cgroup
+cat: /proc/23366/cgroup: No such file or directory
+[root@m-k8s ~]# docker exec 3b18 cat /proc/1/cgroup
+Error response from daemon: Container 3b18ce3ea87b60e8947e11d4224e6a5da103f11f0857179aa9a8b7788de5dd9a is not running
+```
 
 ## 도커 아닌 runC로 컨테이너 생성
 
+#### 1)
+```bash
+[root@m-k8s ~]# docker run -d nginx
+1f84cd2e470751c52dd0445e8e4e1181a0a0b50ebc0016bd41b733bd5f7965e2
+[root@m-k8s ~]# docker export 1f84 > nginx.tar
+[root@m-k8s ~]# ls nginx.tar
+nginx.tar
 
+```
 
+#### 2)
+```bash
+[root@m-k8s ~]# mkdir nginx-container
+[root@m-k8s ~]# tar -C nginx-container -svf nginx.tar
+[생략]
+[root@m-k8s ~]# ls nginx-container
+bin   dev                  docker-entrypoint.sh  home  lib32  libx32  mnt  proc  run   srv  tmp  var
+boot  docker-entrypoint.d  etc                   lib   lib64  media   opt  root  sbin  sys  usr
 
+```
 
+#### 3)
+```bash
+[root@m-k8s ~]# ~/_Book_k8sInfra/app/D.DeepDiveContainer/ns-create.sh
+```
+
+#### 4)
+```bash
 
 
 
