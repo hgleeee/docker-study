@@ -57,6 +57,37 @@ root      1486   998  0 10:04 ?        00:00:00 containerd-shim -namespace moby 
 
 ### 실습 (도커로 생성한 컨테이너 PID와 컨테이너 내부 PID 1번이 연결되어 있는가)
 
+#### 1) nginx 관련 프로세스가 호스트에 있는지 확인
+```bash
+[root@m-k8s ~]# ps -ef | grep -v auto | grep nginx
+[root@m-k8s ~]#
+```
+
+#### 2) nginx 컨테이너 구동 후 nginx 관련 프로세스 재확인
+```bash
+[root@m-k8s ~]# docker run -d nginx
+Unable to find image 'nginx:latest' locally
+latest: Pulling from library/nginx
+5b5fe70539cd: Pull complete
+441a1b465367: Pull complete
+3b9543f2b500: Pull complete
+ca89ed5461a9: Pull complete
+b0e1283145af: Pull complete
+4b98867cde79: Pull complete
+4a85ce26214d: Pull complete
+Digest: sha256:593dac25b7733ffb7afe1a72649a43e574778bf025ad60514ef40f6b5d606247
+Status: Downloaded newer image for nginx:latest
+e442af61675f6e2a57eda586412ded2076aac1dd3166d93ea37f8e6e1625aae8
+[root@m-k8s ~]# ps -ef | grep -v auto | grep nginx
+root      6592  6574  0 10:10 ?        00:00:00 nginx: master process nginx -g daemon off;
+101       6629  6592  0 10:10 ?        00:00:00 nginx: worker process
+101       6630  6592  0 10:10 ?        00:00:00 nginx: worker process
+```
+
+- ps -ef | grep -v auto | grep nginx 실행 결과 PID가 6592인 nginx 프로세스가 나타난다.
+- 자식 프로세스인 6629번은 nginx의 실제 역할을 담당하며 6592가 생성될 때 같이 생성되므로, nginx 기능을 하는 프로세스는 6592 하나라고 볼 수 있다.
+- 현재 생성된 프로세스는 도커가 생성한 것이므로 컨테이너 내부에 격리되어 있는데 호스트에서 ps -ef 명령어를 실행했을 때 프로세스를 확인 가능하다.
+- 이는 호스트에서 보이는 프로세스와 컨테이너 프로세스가 연결되어 있음을 추측할 수 있다.
 
 ## 도커 아닌 runC로 컨테이너 생성
 
