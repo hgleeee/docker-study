@@ -89,7 +89,12 @@ root      6592  6574  0 10:10 ?        00:00:00 nginx: master process nginx -g d
 - 현재 생성된 프로세스는 도커가 생성한 것이므로 컨테이너 내부에 격리되어 있는데 호스트에서 ps -ef 명령어를 실행했을 때 프로세스를 확인 가능하다.
 - 이는 호스트에서 보이는 프로세스와 컨테이너 프로세스가 연결되어 있음을 추측할 수 있다.
 
-#### 3) 
+#### 3) 컨테이너 내부의 nginx 프로세스 확인
+```bash
+[root@m-k8s ~]# docker exec e442 ls -l /proc/1/exe
+lrwxrwxrwx. 1 root root 0 Jun 27 01:26 /proc/1/exe -> /usr/sbin/nginx
+```
+- 리눅스는 프로세스와 관련된 정보를 /proc/<PID>/ 디렉터리에 보관하며, /proc/<PID>/exe는 해당 <PID>를 가지는 프로세스를 생성하기 위해 실행된 
 
 ## 도커 아닌 runC로 컨테이너 생성
 
