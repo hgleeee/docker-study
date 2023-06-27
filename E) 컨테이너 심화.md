@@ -94,7 +94,10 @@ root      6592  6574  0 10:10 ?        00:00:00 nginx: master process nginx -g d
 [root@m-k8s ~]# docker exec e442 ls -l /proc/1/exe
 lrwxrwxrwx. 1 root root 0 Jun 27 01:26 /proc/1/exe -> /usr/sbin/nginx
 ```
-- 리눅스는 프로세스와 관련된 정보를 /proc/<PID>/ 디렉터리에 보관하며, /proc/<PID>/exe는 해당 <PID>를 가지는 프로세스를 생성하기 위해 실행된 
+- 리눅스는 프로세스와 관련된 정보를 /proc/<PID>/ 디렉터리에 보관하며, /proc/<PID>/exe는 해당 <PID>를 가지는 프로세스를 생성하기 위해 실행된 명령어를 보여준다.
+- /proc/1/exe -> /usr/sbin/nginx는 컨테이너 내부에서 PID 1을 가지고 구동 중인 프로세스가 nginx임을 의미한다.
+
+#### 4) 호스트와 컨테인너 내부의 nginx
 
 ## 도커 아닌 runC로 컨테이너 생성
 
